@@ -1,79 +1,33 @@
-import logging
 import textwrap
-import asyncio
 from kagiapi import KagiClient
 from concurrent.futures import ThreadPoolExecutor
 
-from mcp.types import TextContent, Tool
-from mcp.server import Server, stdio_server
-from pydantic import BaseModel, Field
+from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 
-def setup_logger():
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("kagimcp")
-    logger.info("Starting Kagi Server")
-    return logger
-
-
-logger = setup_logger()
-server = Server("kagimcp")
 kagi_client = KagiClient()
+mcp = FastMCP("kagimcp")
 
 
-class ToolModel(BaseModel):
-    @classmethod
-    def as_tool(cls):
-        return Tool(
-            name=cls.__name__,
-            description=cls.__doc__,
-            inputSchema=cls.model_json_schema(),
-        )
-
-
-class Search(ToolModel):
-    """Perform web search based on one or more queries. Results are from all queries given. They are numbered continuously, so that a user may be able to refer to a result by a specific number."""
-
+@mcp.tool()
+def search(
     queries: list[str] = Field(
         description="One or more concise, keyword-focused search queries. Include essential context within each query for standalone use."
-    )
-
-
-@server.list_tools()
-async def handle_list_tools() -> list[Tool]:
-    """List available tools."""
-    logger.info("Listing available tools")
-    tools = [
-        Search.as_tool(),
-    ]
-    logger.info(f"Available tools: {[tool.name for tool in tools]}")
-    return tools
-
-
-@server.call_tool()
-async def handle_call_tool(name: str, arguments: dict | None) -> list[TextContent]:
-    """Handle tool execution requests."""
-    logger.info(f"Tool called: {name} with arguments: {arguments}")
+    ),
+) -> str:
+    """Perform web search based on one or more queries. Results are from all queries given. They are numbered continuously, so that a user may be able to refer to a result by a specific number."""
     try:
-        if name == "Search":
-            queries = arguments.get("queries") if arguments else None
+        if not queries:
+            raise ValueError("Search called with no queries.")
 
-            if not queries:
-                raise ValueError("Search called with no queries.")
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(kagi_client.search, queries, timeout=10))
 
-            with ThreadPoolExecutor() as executor:
-                results = list(executor.map(kagi_client.search, queries, timeout=10))
-
-            return [
-                TextContent(type="text", text=format_search_results(queries, results))
-            ]
-
-        else:
-            raise ValueError(f"Unknown tool: {name}")
+        return format_search_results(queries, results)
 
     except Exception as e:
-        logger.error(f"Server error occurred: {str(e) or repr(e)}", exc_info=True)
-        return [TextContent(type="text", text=f"Error: {str(e) or repr(e)}")]
+        return f"Error: {str(e) or repr(e)}"
 
 
 def format_search_results(queries: list[str], responses) -> str:
@@ -121,19 +75,3 @@ def format_search_results(queries: list[str], responses) -> str:
         per_query_response_strs.append(query_response_str)
 
     return "\n\n".join(per_query_response_strs)
-
-
-async def main():
-    logger.info("Starting Kagi MCP server")
-    try:
-        options = server.create_initialization_options()
-        async with stdio_server() as (read_stream, write_stream):
-            logger.info("Server initialized successfully")
-            await server.run(read_stream, write_stream, options)
-    except Exception as e:
-        logger.error(f"Server error occurred: {str(e) or repr(e)}", exc_info=True)
-        raise
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
