@@ -6,8 +6,19 @@
   <img width="380" height="200" src="https://glama.ai/mcp/servers/xabrrs4bka/badge" alt="Kagi Server MCP server" />
 </a>
 
+## Features
+
+This MCP server provides two main tools for integrating Kagi's services with LLMs:
+
+1. **Search** - Perform web searches using Kagi's search API (requires search API access)
+2. **Summarize** - Use Kagi's FastGPT to summarize web search results for a query (available to all Kagi users)
+
+Each tool can be enabled/disabled independently using environment variables, allowing you to use only the features you need or have access to.
+
 ## Setup Intructions
-> Before anything, ensure you have access to the search API. It is currently in closed beta and available upon request. Please reach out to support@kagi.com for an invite.
+> For the search functionality, ensure you have access to the search API. It is currently in closed beta and available upon request. Please reach out to support@kagi.com for an invite.
+>
+> The FastGPT summarize functionality is available to all Kagi users with an API key.
 
 Install uv first.
 
@@ -32,7 +43,9 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
       "command": "uvx",
       "args": ["kagimcp"],
       "env": {
-        "KAGI_API_KEY": "YOUR_API_KEY_HERE"
+        "KAGI_API_KEY": "YOUR_API_KEY_HERE",
+        "KAGI_ENABLE_SEARCH": "true",
+        "KAGI_ENABLE_FASTGPT": "true"
       }
     }
   }
@@ -112,7 +125,9 @@ mcp install /ABSOLUTE/PATH/TO/PARENT/FOLDER/kagimcp/src/kagimcp/server.py -v "KA
         "kagimcp"
       ],
       "env": {
-        "KAGI_API_KEY": "YOUR_API_KEY_HERE"
+        "KAGI_API_KEY": "YOUR_API_KEY_HERE",
+        "KAGI_ENABLE_SEARCH": "true",
+        "KAGI_ENABLE_FASTGPT": "true"
       }
     }
   }
@@ -135,6 +150,10 @@ npx @modelcontextprotocol/inspector \
 ```
 Then access MCP Inspector at `http://localhost:5173`. You may need to add your Kagi API key in the environment variables in the inspector under `KAGI_API_KEY`.
 
-# Notes
-- Level of logging is adjustable through the `FASTMCP_LOG_LEVEL` environment variable (e.g. `FASTMCP_LOG_LEVEL="ERROR"`)
+# Environment Variables
+
+- `KAGI_API_KEY` - Your Kagi API key (required)
+- `KAGI_ENABLE_SEARCH` - Enable/disable the search functionality (default: "true")
+- `KAGI_ENABLE_FASTGPT` - Enable/disable the FastGPT functionality (default: "true")
+- `FASTMCP_LOG_LEVEL` - Adjust logging level (e.g. "ERROR", "INFO", "DEBUG")
   - Relevant issue: https://github.com/kagisearch/kagimcp/issues/4

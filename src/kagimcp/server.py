@@ -1,11 +1,19 @@
+import os
 import textwrap
-from kagiapi import KagiClient
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
+from kagiapi import KagiClient  # type: ignore
+from kagiapi.models import FastGPTResponse  # type: ignore
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
+# Feature flags from environment variables with defaults
+ENABLE_SEARCH = os.environ.get("KAGI_ENABLE_SEARCH", "true").lower() == "true"
+ENABLE_FASTGPT = os.environ.get("KAGI_ENABLE_FASTGPT", "true").lower() == "true"
 
+# Initialize Kagi client
 kagi_client = KagiClient()
 mcp = FastMCP("kagimcp", dependencies=["kagiapi", "mcp[cli]"])
 
@@ -13,14 +21,26 @@ mcp = FastMCP("kagimcp", dependencies=["kagiapi", "mcp[cli]"])
 @mcp.tool()
 def search(
     queries: list[str] = Field(
-        description="One or more concise, keyword-focused search queries. Include essential context within each query for standalone use."
+        description="One or more concise, keyword-focused search queries. "
+        "Include essential context within each query for standalone use."
     ),
 ) -> str:
-    """Perform web search based on one or more queries. Results are from all queries given. They are numbered continuously, so that a user may be able to refer to a result by a specific number."""
+    """Perform web search based on one or more queries.
+    
+    Results are from all queries given. They are numbered continuously,
+    so that a user may be able to refer to a result by a specific number.
+    """
+    if not ENABLE_SEARCH:
+        return (
+            "Search functionality is disabled. "
+            "Please enable it by setting KAGI_ENABLE_SEARCH=true."
+        )
+    
+    # Check for empty queries before entering try block
+    if not queries:
+        raise ValueError("Search called with no queries.")
+        
     try:
-        if not queries:
-            raise ValueError("Search called with no queries.")
-
         with ThreadPoolExecutor() as executor:
             results = list(executor.map(kagi_client.search, queries, timeout=10))
 
@@ -30,8 +50,57 @@ def search(
         return f"Error: {str(e) or repr(e)}"
 
 
-def format_search_results(queries: list[str], responses) -> str:
-    """Formatting of results for response. Need to consider both LLM and human parsing."""
+@mcp.tool()
+def fast_gpt(
+    query: str = Field(
+        description="A query to summarize search results for. "
+        "Should be a specific, information-seeking question."
+    ),
+    cache: bool = Field(
+        default=True,
+        description="Whether to allow cached requests & responses.",
+    ),
+) -> str:
+    """Use FastGPT to summarize web search results for a query.
+    
+    Returns an AI-generated answer with references to sources.
+    """
+    if not ENABLE_FASTGPT:
+        return (
+            "FastGPT functionality is disabled. "
+            "Please enable it by setting KAGI_ENABLE_FASTGPT=true."
+        )
+    
+    try:
+        # Add detailed error logging
+        import logging
+        logging.info(f"Calling FastGPT with query: {query}")
+        response: FastGPTResponse = kagi_client.fastgpt(query=query)
+        logging.info("FastGPT response received successfully")
+        return format_fastgpt_response(response)
+    except Exception as e:
+        import traceback
+        error_details = f"Error: {str(e) or repr(e)}\n{traceback.format_exc()}"
+        logging.error(error_details)
+        return error_details
+
+
+def format_fastgpt_response(response: FastGPTResponse) -> str:
+    """Format the FastGPT response for display."""
+    result = str(response["data"]["output"])
+
+    if response["data"]["references"]:
+        result += "\n\n## References\n"
+        for i, ref in enumerate(response["data"]["references"], 1):
+            result += f"{i}. [{ref['title']}]({ref['url']})\n"
+    
+    return result
+
+
+def format_search_results(
+    queries: list[str], responses: Sequence[dict[str, Any]]
+) -> str:
+    """Format search results for response. Consider both LLM and human parsing."""
 
     result_template = textwrap.dedent("""
         {result_number}: {title}
@@ -50,7 +119,7 @@ def format_search_results(queries: list[str], responses) -> str:
     per_query_response_strs = []
 
     start_index = 1
-    for query, response in zip(queries, responses):
+    for query, response in zip(queries, responses, strict=True):
         # t == 0 is search result, t == 1 is related searches
         results = [result for result in response["data"] if result["t"] == 0]
 
@@ -77,7 +146,8 @@ def format_search_results(queries: list[str], responses) -> str:
     return "\n\n".join(per_query_response_strs)
 
 
-def main():
+def main() -> None:
+    """Main entry point for the MCP server."""
     mcp.run()
 
 

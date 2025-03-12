@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.12"
 
 [[package]]
@@ -73,7 +74,7 @@ name = "click"
 version = "8.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "platform_system == 'Windows'" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b9/2e/0090cbf739cee7d23781ad4b89a9894a41538e4fcf4c31dcdd705b78eb8b/click-8.1.8.tar.gz", hash = "sha256:ed53c9d8990d83c2a27deae68e4ee337473f6330c040a31d4225c9574d16096a", size = 226593 }
 wheels = [
@@ -146,20 +147,20 @@ wheels = [
 
 [[package]]
 name = "kagiapi"
-version = "0.2.1"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/3a/65b13878fd8cb88e58c9422f0eb1becd4cd5c93470f14fa2fd29b4a9f1db/kagiapi-0.2.1.tar.gz", hash = "sha256:355fe407b4c683d6f084827e4f854fd95134df2842f15d089dacff620e3f4aeb", size = 8113 }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/dc/b573c6cbe920c7adace254ad465d1747b3340264b83aee5827100cc6acae/kagiapi-0.2.0.tar.gz", hash = "sha256:85ba8298bdd652709ea14c4260596c61087ee8cca6de80108678a4c7dc4cb2c9", size = 8065 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4a/97/b2f18a488c49e8a2a608f7cf4b29972129e75de994aa8c37520965cff6c8/kagiapi-0.2.1-py3-none-any.whl", hash = "sha256:f3f1466908041d117770b7f93bee12097e114dd518c4dda35413df785546799a", size = 3703 },
+    { url = "https://files.pythonhosted.org/packages/a8/0a/d97299dcb9c504d4b9f5ea127139b29492505d826a53187f6b6198fd2609/kagiapi-0.2.0-py3-none-any.whl", hash = "sha256:4adf6c44557a198ebc7b67b34bf605be15fc55b05eacecead03e57cb2be1276d", size = 3684 },
 ]
 
 [[package]]
 name = "kagimcp"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
@@ -171,7 +172,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "kagiapi", specifier = ">=0.2.1" },
+    { name = "kagiapi", specifier = "==0.2.0" },
     { name = "mcp", extras = ["cli"], specifier = "~=1.2.0" },
     { name = "pydantic", specifier = ">=2.10.3" },
 ]

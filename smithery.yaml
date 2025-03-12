@@ -11,7 +11,23 @@ startCommand:
       kagiApiKey:
         type: string
         description: The API key for the Kagi MCP server.
+      enableSearch:
+        type: boolean
+        description: Enable the search functionality.
+        default: true
+      enableFastGPT:
+        type: boolean
+        description: Enable the FastGPT functionality.
+        default: true
   commandFunction:
     # A function that produces the CLI command to start the MCP on stdio.
     |-
-    (config) => ({command:'uv',args:['run','kagimcp'],env:{KAGI_API_KEY:config.kagiApiKey}})
+    (config) => ({
+      command: 'uv',
+      args: ['run', 'kagimcp'],
+      env: {
+        KAGI_API_KEY: config.kagiApiKey,
+        KAGI_ENABLE_SEARCH: config.enableSearch !== false ? 'true' : 'false',
+        KAGI_ENABLE_FASTGPT: config.enableFastGPT !== false ? 'true' : 'false'
+      }
+    })
