@@ -18,71 +18,61 @@ kagi_client = KagiClient()
 mcp = FastMCP("kagimcp", dependencies=["kagiapi", "mcp[cli]"])
 
 
-@mcp.tool()
-def search(
-    queries: list[str] = Field(
-        description="One or more concise, keyword-focused search queries. "
-        "Include essential context within each query for standalone use."
-    ),
-) -> str:
-    """Perform web search based on one or more queries.
-    
-    Results are from all queries given. They are numbered continuously,
-    so that a user may be able to refer to a result by a specific number.
-    """
-    if not ENABLE_SEARCH:
-        return (
-            "Search functionality is disabled. "
-            "Please enable it by setting KAGI_ENABLE_SEARCH=true."
-        )
-    
-    # Check for empty queries before entering try block
-    if not queries:
-        raise ValueError("Search called with no queries.")
+if ENABLE_SEARCH:
+    @mcp.tool()
+    def search(
+        queries: list[str] = Field(
+            description="One or more concise, keyword-focused search queries. "
+            "Include essential context within each query for standalone use."
+        ),
+    ) -> str:
+        """Perform web search based on one or more queries.
         
-    try:
-        with ThreadPoolExecutor() as executor:
-            results = list(executor.map(kagi_client.search, queries, timeout=10))
+        Results are from all queries given. They are numbered continuously,
+        so that a user may be able to refer to a result by a specific number.
+        """
+        # Check for empty queries before entering try block
+        if not queries:
+            raise ValueError("Search called with no queries.")
+            
+        try:
+            with ThreadPoolExecutor() as executor:
+                results = list(executor.map(kagi_client.search, queries, timeout=10))
 
-        return format_search_results(queries, results)
+            return format_search_results(queries, results)
 
-    except Exception as e:
-        return f"Error: {str(e) or repr(e)}"
+        except Exception as e:
+            return f"Error: {str(e) or repr(e)}"
 
 
-@mcp.tool()
-def fast_gpt(
-    query: str = Field(
-        description="A query to summarize search results for. "
-        "Should be a specific, information-seeking question."
-    ),
-    cache: bool = Field(
-        default=True,
-        description="Whether to allow cached requests & responses.",
-    ),
-) -> str:
-    """Use FastGPT to summarize web search results for a query.
-    
-    Returns an AI-generated answer with references to sources.
-    """
-    if not ENABLE_FASTGPT:
-        return (
-            "FastGPT functionality is disabled. "
-            "Please enable it by setting KAGI_ENABLE_FASTGPT=true."
-        )
-    
-    try:
-        # Add detailed error logging
-        import logging
-        logging.info(f"Calling FastGPT with query: {query}")
-        response: FastGPTResponse = kagi_client.fastgpt(query=query)
-        logging.info("FastGPT response received successfully")
-        return format_fastgpt_response(response)
-    except Exception as e:
-        import traceback
-        error_details = f"Error: {str(e) or repr(e)}\n{traceback.format_exc()}"
-        logging.error(error_details)
-        return error_details
+if ENABLE_FASTGPT:
+    @mcp.tool()
+    def fast_gpt(
+        query: str = Field(
+            description="A query to summarize search results for. "
+            "Should be a specific, information-seeking question."
+        ),
+        cache: bool = Field(
+            default=True,
+            description="Whether to allow cached requests & responses.",
+        ),
+    ) -> str:
+        """Use FastGPT to summarize web search results for a query.
+        
+        Returns an AI-generated answer with references to sources.
+        """
+        try:
+            # Add detailed error logging
+            import logging
+            logging.info(f"Calling FastGPT with query: {query}")
+            response: FastGPTResponse = kagi_client.fastgpt(query=query)
+            logging.info("FastGPT response received successfully")
+            return format_fastgpt_response(response)
+        except Exception as e:
+            import traceback
+            error_details = f"Error: {str(e) or repr(e)}\n{traceback.format_exc()}"
+            logging.error(error_details)
+            return error_details
 
 
 def format_fastgpt_response(response: FastGPTResponse) -> str:
